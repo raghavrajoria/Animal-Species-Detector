@@ -15,36 +15,36 @@ Classes:
   8. Squirrel
 
  Model Architecture:
-  Pretrained VGG16 (ImageNet weights)
-  Fine-tuned last 4 convolutional layers
-  Global Average Pooling
-  Dropout (0.5)
-  Dense Softmax Output Layer
-  Optimizer: Adam
-  Loss Function: Categorical Crossentropy
+  1. Pretrained VGG16 (ImageNet weights)
+  2. Fine-tuned last 4 convolutional layers
+  3. Global Average Pooling
+  4. Dropout (0.5)
+  5. Dense Softmax Output Layer
+  6. Optimizer: Adam
+  7. Loss Function: Categorical Crossentropy
 
 📊 Performance
-  Test Accuracy: 86.87%
-  Macro F1 Score: 0.87
-  Confusion Matrix included
-  Classification Report included
+  1. Test Accuracy: 86.87%
+  2. Macro F1 Score: 0.87
+  3. Confusion Matrix included
+  4. Classification Report included
 
   
 📁 Dataset Structure
-  dataset/
-    train/
-        class_1/
-        class_2/
-        ...
-    test/
-        class_1/
-        class_2/
+    dataset/
+      train/
+          class_1/
+          class_2/
+            ...
+      test/
+          class_1/
+          class_2/
 
 
 Total:
-  640 Training Images
-  160 Testing Images
-  8 Classes
+  1. 640 Training Images
+  2. 160 Testing Images
+  3. 8 Classes
 
 
 🚀 How to Run
