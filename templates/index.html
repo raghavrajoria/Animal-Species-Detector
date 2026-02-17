@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Animal Species Classifier</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #1a1a18;
+        --cream: #f5f0e8;
+        --sage: #4a6741;
+        --amber: #c8852a;
+        --rust: #8b3a2a;
+        --mist: #dde5d8;
+        --gold: #d4a843;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--cream);
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Texture overlay */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 1000;
+      }
+
+      header {
+        padding: 40px 60px 0;
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        border-bottom: 1px solid rgba(74, 103, 65, 0.2);
+        padding-bottom: 24px;
+      }
+
+      .logo-mark {
+        width: 36px;
+        height: 36px;
+        background: var(--sage);
+        border-radius: 50% 50% 50% 0;
+        flex-shrink: 0;
+        position: relative;
+        top: 4px;
+      }
+
+      header h1 {
+        font-family: "Playfair Display", serif;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      header span {
+        font-size: 0.85rem;
+        color: var(--sage);
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-left: auto;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        min-height: calc(100vh - 89px);
+      }
+
+      /* LEFT PANEL */
+      .upload-panel {
+        padding: 60px;
+        border-right: 1px solid rgba(74, 103, 65, 0.2);
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+
+      .panel-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--sage);
+        font-weight: 500;
+      }
+
+      .panel-title {
+        font-family: "Playfair Display", serif;
+        font-size: clamp(2rem, 4vw, 3.2rem);
+        font-weight: 900;
+        line-height: 1.05;
+        color: var(--ink);
+      }
+
+      .panel-title em {
+        font-style: italic;
+        color: var(--sage);
+      }
+
+      .panel-desc {
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: #5a5a52;
+        max-width: 380px;
+      }
+
+      /* DROP ZONE */
+      .drop-zone {
+        border: 2px dashed rgba(74, 103, 65, 0.4);
+        border-radius: 12px;
+        padding: 48px 32px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(221, 229, 216, 0.3);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .drop-zone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--sage);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .drop-zone.drag-over {
+        border-color: var(--sage);
+        transform: scale(1.01);
+      }
+
+      .drop-zone.drag-over::before {
+        opacity: 0.06;
+      }
+
+      .drop-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        display: block;
+        position: relative;
+        z-index: 1;
+      }
+
+      .drop-zone p {
+        font-size: 0.9rem;
+        color: #6a6a60;
+        position: relative;
+        z-index: 1;
+      }
+
+      .drop-zone strong {
+        color: var(--sage);
+        font-weight: 500;
+      }
+
+      /* Preview */
+      #preview-container {
+        display: none;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        background: var(--ink);
+        max-height: 280px;
+      }
+
+      #preview-img {
+        width: 100%;
+        height: 280px;
+        object-fit: cover;
+        display: block;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+
+      #preview-img.loaded {
+        opacity: 1;
+      }
+
+      .preview-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 12px 16px;
+        background: linear-gradient(transparent, rgba(26, 26, 24, 0.8));
+        color: white;
+        font-size: 0.8rem;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      #preview-container:hover .preview-overlay {
+        opacity: 1;
+      }
+
+      .change-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(245, 240, 232, 0.9);
+        border: none;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-family: "DM Sans", sans-serif;
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--ink);
+        transition: background 0.2s;
+      }
+
+      .change-btn:hover {
+        background: white;
+      }
+
+      /* Action buttons */
+      .actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .btn-primary {
+        flex: 1;
+        padding: 16px 24px;
+        background: var(--sage);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        letter-spacing: 0.02em;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn-primary::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: white;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .btn-primary:hover::after {
+        opacity: 0.1;
+      }
+
+      .btn-primary:active {
+        transform: scale(0.98);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        padding: 16px 20px;
+        background: transparent;
+        color: var(--ink);
+        border: 1.5px solid rgba(26, 26, 24, 0.25);
+        border-radius: 8px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--sage);
+        color: var(--sage);
+      }
+
+      /* Camera modal */
+      .modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(26, 26, 24, 0.85);
+        z-index: 500;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+      }
+
+      .modal-backdrop.active {
+        display: flex;
+      }
+
+      .camera-modal {
+        background: var(--cream);
+        border-radius: 16px;
+        padding: 32px;
+        width: 90%;
+        max-width: 520px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        animation: slideUp 0.3s ease;
+      }
+
+      @keyframes slideUp {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-title {
+        font-family: "Playfair Display", serif;
+        font-size: 1.4rem;
+        font-weight: 700;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #888;
+        line-height: 1;
+        transition: color 0.2s;
+      }
+
+      .close-btn:hover {
+        color: var(--ink);
+      }
+
+      #camera-video {
+        width: 100%;
+        border-radius: 10px;
+        background: var(--ink);
+        aspect-ratio: 4/3;
+        object-fit: cover;
+      }
+
+      .camera-controls {
+        display: flex;
+        gap: 12px;
+      }
+
+      #canvas-hidden {
+        display: none;
+      }
+
+      /* RIGHT PANEL */
+      .result-panel {
+        padding: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 40px;
+        background: rgba(221, 229, 216, 0.15);
+      }
+
+      /* Empty state */
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 16px;
+        padding: 40px;
+        flex: 1;
+      }
+
+      .empty-animal-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .animal-chip {
+        background: white;
+        border: 1px solid rgba(74, 103, 65, 0.2);
+        border-radius: 24px;
+        padding: 6px 14px;
+        font-size: 0.78rem;
+        color: #6a6a60;
+        white-space: nowrap;
+        transition: all 0.2s;
+      }
+
+      .animal-chip:hover {
+        border-color: var(--sage);
+        color: var(--sage);
+        background: var(--mist);
+      }
+
+      .empty-state h3 {
+        font-family: "Playfair Display", serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .empty-state p {
+        font-size: 0.9rem;
+        color: #8a8a80;
+        line-height: 1.6;
+        max-width: 280px;
+      }
+
+      /* Result card */
+      .result-card {
+        display: none;
+        flex-direction: column;
+        gap: 28px;
+        animation: fadeIn 0.5s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .result-card.visible {
+        display: flex;
+      }
+
+      .result-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--sage);
+        font-weight: 500;
+      }
+
+      .result-species {
+        font-family: "Playfair Display", serif;
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 900;
+        line-height: 1;
+        color: var(--ink);
+        text-transform: capitalize;
+      }
+
+      /* Confidence bar */
+      .confidence-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .confidence-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+      }
+
+      .confidence-row span:last-child {
+        font-weight: 600;
+        color: var(--sage);
+        font-size: 1rem;
+      }
+
+      .confidence-bar {
+        height: 6px;
+        background: rgba(74, 103, 65, 0.15);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--sage), var(--gold));
+        border-radius: 3px;
+        width: 0%;
+        transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Confidence tiers */
+      .confidence-tier {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 500;
+      }
+
+      .tier-high {
+        background: rgba(74, 103, 65, 0.12);
+        color: var(--sage);
+      }
+
+      .tier-medium {
+        background: rgba(200, 133, 42, 0.12);
+        color: var(--amber);
+      }
+
+      .tier-low {
+        background: rgba(139, 58, 42, 0.12);
+        color: var(--rust);
+      }
+
+      .tier-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      /* Animal facts strip */
+      .animal-facts {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 24px;
+        border: 1px solid rgba(74, 103, 65, 0.12);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .fact-item {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .fact-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #9a9a90;
+      }
+
+      .fact-value {
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: var(--ink);
+      }
+
+      /* Loading spinner */
+      .loading-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(245, 240, 232, 0.9);
+        z-index: 300;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .loading-overlay.active {
+        display: flex;
+      }
+
+      .spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid rgba(74, 103, 65, 0.2);
+        border-top-color: var(--sage);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        font-family: "Playfair Display", serif;
+        font-size: 1.1rem;
+        color: var(--sage);
+      }
+
+      /* Divider */
+      .divider {
+        height: 1px;
+        background: rgba(74, 103, 65, 0.15);
+      }
+
+      /* Hidden file input */
+      #file-input {
+        display: none;
+      }
+
+      /* Supported animals tag */
+      .supported-label {
+        font-size: 0.78rem;
+        color: #8a8a80;
+        margin-top: -16px;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+        header {
+          padding: 24px;
+        }
+        .upload-panel,
+        .result-panel {
+          padding: 32px 24px;
+        }
+        .result-panel {
+          border-top: 1px solid rgba(74, 103, 65, 0.2);
+        }
+        .upload-panel {
+          border-right: none;
+        }
+        .empty-animal-grid {
+          grid-template-columns: repeat(4, auto);
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+      <p class="loading-text">Analysing image...</p>
+    </div>
+
+    <!-- Camera modal -->
+    <div class="modal-backdrop" id="camera-modal">
+      <div class="camera-modal">
+        <div class="modal-header">
+          <h2 class="modal-title">Take a Photo</h2>
+          <button class="close-btn" onclick="closeCamera()">×</button>
+        </div>
+        <video id="camera-video" autoplay playsinline></video>
+        <canvas id="canvas-hidden"></canvas>
+        <div class="camera-controls">
+          <button class="btn-primary" onclick="capturePhoto()" style="flex: 1">
+            📸 Capture
+          </button>
+          <button
+            class="btn-secondary"
+            onclick="closeCamera()"
+            style="flex: 1; justify-content: center"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <header>
+      <div class="logo-mark"></div>
+      <h1>WildLens — Animal Species Classifier</h1>
+      <span>Powered by VGG + CNN</span>
+    </header>
+
+    <main>
+      <!-- LEFT: Upload -->
+      <section class="upload-panel">
+        <div>
+          <p class="panel-label">Species Detection</p>
+          <h2 class="panel-title">Identify any<br /><em>wild creature</em></h2>
+        </div>
+
+        <p class="panel-desc">
+          Upload a photo or use your camera. Our model will classify the animal
+          and return a prediction with a confidence score.
+        </p>
+
+        <form
+          method="POST"
+          enctype="multipart/form-data"
+          id="upload-form"
+          action="/"
+        >
+          <input
+            type="file"
+            id="file-input"
+            name="file"
+            accept="image/*"
+            onchange="handleFileSelect(event)"
+          />
+
+          <!-- Drop zone -->
+          <div
+            class="drop-zone"
+            id="drop-zone"
+            onclick="document.getElementById('file-input').click()"
+            ondragover="handleDragOver(event)"
+            ondragleave="handleDragLeave(event)"
+            ondrop="handleDrop(event)"
+          >
+            <span class="drop-icon">🐾</span>
+            <p><strong>Drop an image here</strong> or click to browse</p>
+            <p style="margin-top: 6px; font-size: 0.8rem">
+              JPG, PNG, WEBP supported
+            </p>
+          </div>
+
+          <!-- Preview (hidden until image selected) -->
+          <div id="preview-container">
+            <img id="preview-img" alt="Preview" />
+            <div class="preview-overlay" id="preview-filename"></div>
+            <button
+              type="button"
+              class="change-btn"
+              onclick="clearImage(event)"
+            >
+              Change ✕
+            </button>
+          </div>
+
+          <p class="supported-label">
+            Recognises: butterfly · cat · cow · dog · elephant · horse · sheep ·
+            squirrel
+          </p>
+
+          <div class="actions" style="margin-top: 8px">
+            <button
+              type="submit"
+              class="btn-primary"
+              id="predict-btn"
+              disabled
+              onclick="showLoading()"
+            >
+              🔍 Predict Species
+            </button>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="openCamera()"
+              title="Use camera"
+            >
+              📷 Camera
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- RIGHT: Results -->
+      <section class="result-panel">
+        <!-- Empty state -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-animal-grid">
+            <span class="animal-chip">🦋 Butterfly</span>
+            <span class="animal-chip">🐱 Cat</span>
+            <span class="animal-chip">🐄 Cow</span>
+            <span class="animal-chip">🐶 Dog</span>
+            <span class="animal-chip">🐘 Elephant</span>
+            <span class="animal-chip">🐴 Horse</span>
+            <span class="animal-chip">🐑 Sheep</span>
+            <span class="animal-chip">🐿️ Squirrel</span>
+          </div>
+          <h3>Awaiting your image</h3>
+          <p>
+            Upload a photo on the left and hit Predict to see the species
+            identification result here.
+          </p>
+        </div>
+
+        <!-- Result (shown after prediction) -->
+        {% if prediction %}
+        <div class="result-card visible" id="result-card">
+          <div>
+            <p class="result-label">Identified Species</p>
+            <h2 class="result-species" id="species-name">{{ prediction }}</h2>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="confidence-section">
+            <div class="confidence-row">
+              <span>Model Confidence</span>
+              <span id="confidence-value">{{ confidence }}%</span>
+            </div>
+            <div class="confidence-bar">
+              <div
+                class="confidence-fill"
+                id="confidence-fill"
+                data-value="{{ confidence }}"
+              ></div>
+            </div>
+            <div>
+              {% if confidence >= 80 %}
+              <span class="confidence-tier tier-high">
+                <span class="tier-dot"></span>High confidence
+              </span>
+              {% elif confidence >= 50 %}
+              <span class="confidence-tier tier-medium">
+                <span class="tier-dot"></span>Moderate confidence
+              </span>
+              {% else %}
+              <span class="confidence-tier tier-low">
+                <span class="tier-dot"></span>Low confidence — try a clearer
+                image
+              </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="animal-facts" id="animal-facts">
+            <!-- Populated by JS based on prediction -->
+          </div>
+
+          {% if img_path %}
+          <img
+            src="{{ img_path }}"
+            alt="Uploaded"
+            style="
+              width: 100%;
+              border-radius: 10px;
+              max-height: 200px;
+              object-fit: cover;
+            "
+          />
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="result-card" id="result-card" style="display: none"></div>
+        {% endif %}
+      </section>
+    </main>
+
+    <script>
+      // ── Animal facts database ──────────────────────────────────────────
+      const animalFacts = {
+        butterfly: {
+          emoji: "🦋",
+          class: "Insecta",
+          order: "Lepidoptera",
+          diet: "Nectar",
+          lifespan: "2–4 weeks",
+        },
+        cat: {
+          emoji: "🐱",
+          class: "Mammalia",
+          order: "Carnivora",
+          diet: "Carnivore",
+          lifespan: "12–18 years",
+        },
+        cow: {
+          emoji: "🐄",
+          class: "Mammalia",
+          order: "Artiodactyla",
+          diet: "Herbivore",
+          lifespan: "20 years",
+        },
+        dog: {
+          emoji: "🐶",
+          class: "Mammalia",
+          order: "Carnivora",
+          diet: "Omnivore",
+          lifespan: "10–13 years",
+        },
+        elephant: {
+          emoji: "🐘",
+          class: "Mammalia",
+          order: "Proboscidea",
+          diet: "Herbivore",
+          lifespan: "60–70 years",
+        },
+        horse: {
+          emoji: "🐴",
+          class: "Mammalia",
+          order: "Perissodactyla",
+          diet: "Herbivore",
+          lifespan: "25–30 years",
+        },
+        sheep: {
+          emoji: "🐑",
+          class: "Mammalia",
+          order: "Artiodactyla",
+          diet: "Herbivore",
+          lifespan: "10–12 years",
+        },
+        squirrel: {
+          emoji: "🐿️",
+          class: "Mammalia",
+          order: "Rodentia",
+          diet: "Omnivore",
+          lifespan: "6–12 years",
+        },
+      };
+
+      // ── Populate facts on load if there's a result ─────────────────────
+      window.addEventListener("DOMContentLoaded", () => {
+        const speciesEl = document.getElementById("species-name");
+        const factsEl = document.getElementById("animal-facts");
+        const fill = document.getElementById("confidence-fill");
+
+        if (speciesEl && factsEl) {
+          const key = speciesEl.textContent.trim().toLowerCase();
+          const data = animalFacts[key];
+          if (data) {
+            factsEl.innerHTML = `
+              <div class="fact-item">
+                <span class="fact-label">Class</span>
+                <span class="fact-value">${data.class}</span>
+              </div>
+              <div class="fact-item">
+                <span class="fact-label">Order</span>
+                <span class="fact-value">${data.order}</span>
+              </div>
+              <div class="fact-item">
+                <span class="fact-label">Diet</span>
+                <span class="fact-value">${data.diet}</span>
+              </div>
+              <div class="fact-item">
+                <span class="fact-label">Avg. Lifespan</span>
+                <span class="fact-value">${data.lifespan}</span>
+              </div>
+            `;
+          }
+          // Hide empty state, show result
+          document.getElementById("empty-state").style.display = "none";
+          document.getElementById("result-card").style.display = "flex";
+        }
+
+        // Animate confidence bar
+        if (fill) {
+          const val = fill.dataset.value;
+          setTimeout(() => {
+            fill.style.width = val + "%";
+          }, 300);
+        }
+      });
+
+      // ── File select / drag-drop ────────────────────────────────────────
+      let selectedFile = null;
+
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) loadPreview(file);
+      }
+
+      function loadPreview(file) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.getElementById("preview-img");
+          img.src = e.target.result;
+          img.onload = () => img.classList.add("loaded");
+          document.getElementById("preview-filename").textContent =
+            "📎 " + file.name;
+          document.getElementById("drop-zone").style.display = "none";
+          document.getElementById("preview-container").style.display = "block";
+          document.getElementById("predict-btn").disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function clearImage(event) {
+        event.stopPropagation();
+        document.getElementById("file-input").value = "";
+        document.getElementById("preview-img").src = "";
+        document.getElementById("preview-img").classList.remove("loaded");
+        document.getElementById("preview-container").style.display = "none";
+        document.getElementById("drop-zone").style.display = "block";
+        document.getElementById("predict-btn").disabled = true;
+        selectedFile = null;
+      }
+
+      function handleDragOver(event) {
+        event.preventDefault();
+        document.getElementById("drop-zone").classList.add("drag-over");
+      }
+
+      function handleDragLeave() {
+        document.getElementById("drop-zone").classList.remove("drag-over");
+      }
+
+      function handleDrop(event) {
+        event.preventDefault();
+        document.getElementById("drop-zone").classList.remove("drag-over");
+        const file = event.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+          // Sync file to input
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          document.getElementById("file-input").files = dt.files;
+          loadPreview(file);
+        }
+      }
+
+      // ── Loading ────────────────────────────────────────────────────────
+      function showLoading() {
+        if (!document.getElementById("predict-btn").disabled) {
+          document.getElementById("loading").classList.add("active");
+        }
+      }
+
+      // ── Camera ─────────────────────────────────────────────────────────
+      let cameraStream = null;
+
+      async function openCamera() {
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
+          });
+          const video = document.getElementById("camera-video");
+          video.srcObject = cameraStream;
+          document.getElementById("camera-modal").classList.add("active");
+        } catch (err) {
+          alert(
+            "Camera access denied or unavailable. Please upload an image instead.",
+          );
+        }
+      }
+
+      function closeCamera() {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach((t) => t.stop());
+          cameraStream = null;
+        }
+        document.getElementById("camera-modal").classList.remove("active");
+      }
+
+      function capturePhoto() {
+        const video = document.getElementById("camera-video");
+        const canvas = document.getElementById("canvas-hidden");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+        canvas.toBlob(
+          (blob) => {
+            const file = new File([blob], "camera-capture.jpg", {
+              type: "image/jpeg",
+            });
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            document.getElementById("file-input").files = dt.files;
+            loadPreview(file);
+            closeCamera();
+          },
+          "image/jpeg",
+          0.92,
+        );
+      }
+    </script>
+  </body>
+</html>
